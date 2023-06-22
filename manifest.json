@@ -1,0 +1,29 @@
+{
+    "manifest_version": 3,
+    "author": {
+        "email": "ebicdb@gmail.com"
+    },
+    "name": "Cozy.tv Sticker Saver",
+    "description": "Save cozy.tv stickers for use on any channel",
+    "version": "1.0.0",
+    "icons": {
+        "128": "images/sticker-icon.png"
+    },
+    "permissions": [
+        "storage",
+        "unlimitedStorage"
+    ],
+    "content_scripts": [
+        {
+            "css": [
+                "css/style.css"
+            ],
+            "js": [
+                "js/main.js"
+            ],
+            "matches": [
+                "https://cozy.tv/*"
+            ]
+        }
+    ]
+}

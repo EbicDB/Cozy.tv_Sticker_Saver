@@ -1,0 +1,1 @@
+# Cozy.tv Sticker Saver allows you to save cozy stickers for use site wide.
