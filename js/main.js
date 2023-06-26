@@ -109,22 +109,19 @@ function saveSticker(e) { //save sticker to storage
     if (!userStickers[e.target.dataset.code]) {
         let dateSaved = Date.now();
         userStickers[e.target.dataset.code] = Object.assign({ dateSaved }, e.target.dataset);
-        /* if (document.querySelector(".userStickersMenu")) { //render it if saved menu is open
-            renderUserSticker(e.target.dataset.url, e.target.dataset.code);
-        } */
         chrome.storage.local.set({ stickers: userStickers }).then(() => {
-            //console.log("saved");
+
         });
     }
 }
 
-function deleteUserSticker(e) {
+function deleteUserSticker(e) { //delete a sticker from storage
     e.stopPropagation();
     if (userStickers[e.target.dataset.code]) {
         delete userStickers[e.target.dataset.code];
         e.target.parentNode.remove();
         chrome.storage.local.set({ stickers: userStickers }).then(() => {
-            //console.log("deleted");
+
         })
     }
 }
