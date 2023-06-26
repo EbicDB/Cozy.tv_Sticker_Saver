@@ -1,15 +1,33 @@
 let userStickers;
-chrome.storage.local.get(["stickers"]).then(loadStickers);
-function loadStickers(result) {
-    userStickers = result.stickers ? result.stickers : {};
-}
+let oldHref = document.location.href;
+const stickerClasses = ["chat_sticker"];
+let channelStickersMenu;
+let chatInput;
+let chatInputPlaceholder;
+let userStickersMenu;
 
 window.addEventListener("load", getChatInput);
 window.addEventListener("click", pageClicked);
 
-let chatInput;
-let chatInputPlaceholder;
-let userStickersMenu;
+chrome.storage.local.get(["stickers"]).then(loadStickers); //inital load
+function loadStickers(result) {
+    userStickers = result.stickers ? result.stickers : {};
+}
+
+chrome.storage.onChanged.addListener(storageChanged)
+
+function storageChanged(changes, namespace) { //listen for changes on user stickers storage and refresh ui, ensures sticker saves and deletes are reflected in all open cozy tabs 
+    if (namespace === "local" && "stickers" in changes) {
+        userStickers = changes.stickers.newValue;
+        if (document.querySelector(".userStickersMenu")) {
+            renderUserStickers();
+        }
+        channelStickersMenu = document.querySelector("div.grid.h-full.bg-gray-500.p-2.overflow-y-auto.scrollbar-pretty.grid-cols-5.gap-2");
+        if (channelStickersMenu) {
+            addSaveButtons();
+        }
+    }
+}
 
 function getChatInput() {
     chatInput = document.querySelector("[contenteditable=true]");
@@ -20,10 +38,6 @@ function getChatInput() {
         chatInputPlaceholder = chatInput.previousSibling;
     }
 }
-
-let oldHref = document.location.href;
-let stickerClasses = ["chat_sticker"];
-let channelStickersMenu;
 
 function pageClicked(e) {
     document.querySelectorAll(".saveStickerButton").forEach((button) => button.remove());  //get rid of existing save sticker buttons
@@ -95,9 +109,9 @@ function saveSticker(e) { //save sticker to storage
     if (!userStickers[e.target.dataset.code]) {
         let dateSaved = Date.now();
         userStickers[e.target.dataset.code] = Object.assign({ dateSaved }, e.target.dataset);
-        if (document.querySelector(".userStickersMenu")) { //render it if saved menu is open
+        /* if (document.querySelector(".userStickersMenu")) { //render it if saved menu is open
             renderUserSticker(e.target.dataset.url, e.target.dataset.code);
-        }
+        } */
         chrome.storage.local.set({ stickers: userStickers }).then(() => {
             //console.log("saved");
         });
