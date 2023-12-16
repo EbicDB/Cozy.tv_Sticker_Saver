@@ -40,7 +40,7 @@ function getChatInput() {
 }
 
 function pageClicked(e) {
-    document.querySelectorAll(".saveStickerButton").forEach((button) => button.remove());  //get rid of existing save sticker buttons
+    document.querySelectorAll(".chatStickerButtons").forEach((button) => button.remove());  //get rid of existing save sticker buttons
     let clickedElement = e.target;
 
     if (document.location.href !== oldHref) { //changing to new channel, reload chat input
@@ -69,17 +69,29 @@ function chatStickerClicked(clickedElement) { //chat sticker clicked, display sa
     imageUrl = imageUrl.slice(imageUrl.indexOf('"') + 1, imageUrl.lastIndexOf('"'));
     let imageCode = imageUrl.slice(imageUrl.lastIndexOf("/") + 1, imageUrl.lastIndexOf(".webp"));
 
+    let container = document.createElement("div");
+    container.classList.add("chatStickerButtons");
     if (!userStickers[imageCode]) { //only if not already saved
-        clickedElement.style.position = "relative";
-        let button = document.createElement("div");
-        button.classList.add("saveStickerButton");
-        button.dataset.url = imageUrl;
-        button.dataset.code = imageCode;
-        button.innerText = "Save Sticker";
-        button.addEventListener("click", saveSticker);
+        let saveButton = document.createElement("div");
+        saveButton.classList.add("saveStickerButton");
+        saveButton.dataset.url = imageUrl;
+        saveButton.dataset.code = imageCode;
+        saveButton.innerText = "Save Sticker";
+        saveButton.addEventListener("click", saveStickerChatClicked);
 
-        clickedElement.appendChild(button);
+        container.appendChild(saveButton);
     }
+
+    let queueButton = document.createElement("div");
+    queueButton.classList.add("saveStickerButton");
+    queueButton.dataset.url = imageUrl;
+    queueButton.dataset.code = imageCode;
+    queueButton.innerText = "Queue";
+    queueButton.addEventListener("click", queueStickerFromChat);
+    container.appendChild(queueButton);
+
+    clickedElement.style.position = "relative";
+    clickedElement.appendChild(container);
 }
 
 function addSaveButtons() { //add save buttons to channel stickers in sticker menu
@@ -94,7 +106,7 @@ function addSaveButtons() { //add save buttons to channel stickers in sticker me
 
             let stickerSave = document.createElement("div");
             stickerSave.className = "channelStickerSave";
-            stickerSave.addEventListener("click", saveSticker);
+            stickerSave.addEventListener("click", saveStickerClicked);
             stickerSave.dataset.code = imageCode;
             stickerSave.dataset.url = imageUrl;
             stickerSave.innerHTML = "&#128427;";
@@ -103,9 +115,19 @@ function addSaveButtons() { //add save buttons to channel stickers in sticker me
     });
 }
 
-function saveSticker(e) { //save sticker to storage
+function saveStickerClicked(e) { //save sticker to storage
     e.target.remove();
     e.stopPropagation();
+    saveStickerToStorage(e);
+}
+
+function saveStickerChatClicked(e) {
+    e.target.parentNode.remove();
+    e.stopPropagation();
+    saveStickerToStorage(e);
+}
+
+function saveStickerToStorage(e) {
     if (!userStickers[e.target.dataset.code]) {
         let dateSaved = Date.now();
         userStickers[e.target.dataset.code] = Object.assign({ dateSaved }, e.target.dataset);
@@ -115,11 +137,53 @@ function saveSticker(e) { //save sticker to storage
     }
 }
 
-function deleteUserSticker(e) { //delete a sticker from storage
+function confirmDeleteSticker(e) {
     e.stopPropagation();
-    if (userStickers[e.target.dataset.code]) {
-        delete userStickers[e.target.dataset.code];
-        e.target.parentNode.remove();
+    const code = e.target.dataset.code;
+    const url = e.target.dataset.url;
+
+    const confirmBox = document.createElement("div");
+    confirmBox.classList.add("deleteConfirmation");
+
+    const heading = document.createElement("h3");
+    heading.innerText = "Delete this sticker?";
+    confirmBox.appendChild(heading);
+
+    const sticker = document.createElement("div");
+    sticker.classList.add("savedSticker");
+    sticker.style.backgroundImage = `url(${url})`;
+    confirmBox.appendChild(sticker);
+
+    const buttonSpan = document.createElement("span");
+    buttonSpan.classList.add("buttonSpan");
+
+    const cancelButton = document.createElement("button");
+    cancelButton.classList.add("cancelButton");
+    cancelButton.innerText = "Cancel";
+    cancelButton.addEventListener("click", cancelDeleteSticker);
+    buttonSpan.appendChild(cancelButton);
+
+    const deleteButton = document.createElement("button");
+    deleteButton.classList.add("deleteButton");
+    deleteButton.innerText = "Delete";
+    deleteButton.addEventListener("click", (e) => deleteUserSticker(e, code));
+    buttonSpan.appendChild(deleteButton);
+
+    confirmBox.appendChild(buttonSpan);
+
+    userStickersMenu.appendChild(confirmBox);
+}
+
+function cancelDeleteSticker(e) {
+    e?.stopPropagation();
+    document.querySelector(".deleteConfirmation").remove();
+}
+
+function deleteUserSticker(e, code) { //delete a sticker from storage
+    e.preventDefault();
+    cancelDeleteSticker();
+    if (userStickers[code]) {
+        delete userStickers[code];
         chrome.storage.local.set({ stickers: userStickers }).then(() => {
 
         })
@@ -136,7 +200,8 @@ function renderUserSticker(url, code) { //render saved sticker, add a delete but
 
     let stickerDelete = document.createElement("div");
     stickerDelete.className = "savedStickerDelete";
-    stickerDelete.addEventListener("click", deleteUserSticker);
+    stickerDelete.addEventListener("click", confirmDeleteSticker);
+    stickerDelete.dataset.url = url;
     stickerDelete.dataset.code = code;
     stickerDelete.innerHTML = "&#x2716;";
     sticker.appendChild(stickerDelete);
@@ -164,29 +229,39 @@ function userStickerClicked(e) {
 }
 
 function queueSticker(url, code) { //add a sticker to the chat text box
+    if (!document.contains(chatInput)) {
+        getChatInput();
+    }
     let stickerToSend = document.createElement("img");
     stickerToSend.style.userSelect = "none";
     stickerToSend.src = url;
     stickerToSend.dataset.sticker = code;
-    chatInput.appendChild(stickerToSend);
-    chatInputPlaceholder.classList.add("opacity-0");
-    placeCaretAtEnd();
+    insertStickerAtCaret(stickerToSend);
 }
 
-function placeCaretAtEnd() { //put cursor after queued sticker
-    chatInput.focus();
-    if (typeof window.getSelection != "undefined"
-        && typeof document.createRange != "undefined") {
-        var range = document.createRange();
+function queueStickerFromChat(e) {
+    e.target.parentNode.remove();
+    e.stopPropagation();
+    queueSticker(e.target.dataset.url, e.target.dataset.code);
+}
+
+function insertStickerAtCaret(sticker) {
+    let sel = window.getSelection();
+    if (sel?.focusNode == chatInput || sel?.focusNode?.parentNode == chatInput) {
+        let range = sel.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(sticker);
+        range.collapse(false);
+        chatInput.focus();
+    }
+    else { //input not selected so insert at end
+        chatInput.focus();
+        chatInput.appendChild(sticker);
+        let range = document.createRange();
         range.selectNodeContents(chatInput);
         range.collapse(false);
-        var sel = window.getSelection();
+        sel = window.getSelection();
         sel.removeAllRanges();
         sel.addRange(range);
-    } else if (typeof document.body.createTextRange != "undefined") {
-        var textRange = document.body.createTextRange();
-        textRange.moveToElementText(chatInput);
-        textRange.collapse(false);
-        textRange.select();
     }
 }

@@ -5,7 +5,7 @@
     },
     "name": "Cozy.tv Sticker Saver",
     "description": "Save cozy.tv stickers for use on any channel",
-    "version": "1.0.1",
+    "version": "1.0.6",
     "icons": {
         "128": "images/sticker-icon.png"
     },
